@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 // 引入 Supabase 相關的型別
 import type { User, Session } from '@supabase/supabase-js'
 // 引入我們之前建立的 supabase client 實例
-import { supabase } from '../lib/supabaseClient' 
+import { supabase } from '../lib/supabaseClient'
 
 // 1. 定義狀態的介面 (State Interface)
 interface AuthState {
@@ -27,7 +27,7 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     // 判斷使用者是否登入，回傳 boolean 型別
     isLoggedIn: (state) => !!state.session,
-    
+
     // 取得使用者電子郵件，回傳 string 或 null 型別
     userEmail: (state): string | null => state.user?.email || null,
   },
@@ -39,7 +39,7 @@ export const useAuthStore = defineStore('auth', {
      */
     async fetchSession() {
       this.loading = true
-      
+
       const { data: { session }, error } = await supabase.auth.getSession()
 
       if (error) {
@@ -49,34 +49,41 @@ export const useAuthStore = defineStore('auth', {
         this.session = session
         this.user = session?.user || null
       }
-      
+
       this.loading = false
     },
-    
+
     /**
      * 透過電子郵件和 OTP/Magic Link 登入
      * @param email - 使用者的電子郵件
      */
-    async signInWithOtp(email: string) {
-      this.loading = true
-      
-      // 使用 Supabase 的 signInWithOtp 函式
-      const { error } = await supabase.auth.signInWithOtp({ 
-        email,
+    // 在 useAuthStore 的 return object 內部找到 signInWithOtp
+    async signInWithOtp(email: string): Promise<string> {
+      const runtimeConfig = import.meta.env;
+
+      // 獲取應用程式的 Base URL，確保它是完整的 http://localhost:5173/KaiGO/
+      // 這裡我們需要動態構造完整的重定向 URL
+      // 假設 Base URL 是 /KaiGO/
+      const baseURL = runtimeConfig.BASE_URL.endsWith('/') ? runtimeConfig.BASE_URL : runtimeConfig.BASE_URL + '/';
+
+      // 構造完整的重定向路徑：http://localhost:5173/KaiGO/
+      const redirectUrl = window.location.origin + baseURL;
+
+      // console.log("OTP Redirecting to:", redirectUrl); // 檢查輸出的路徑
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
         options: {
-          // 這是 Supabase Magic Link 郵件中會帶使用者導向的 URL
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          // *** 關鍵修正：明確指定登入完成後的回調 URL ***
+          emailRedirectTo: redirectUrl
         }
-      })
-      
-      this.loading = false
+      });
 
       if (error) {
-        throw new Error(`登入失敗: ${error.message}`)
+        throw new Error(error.message);
       }
-      
-      // 成功發送 Magic Link 後，回傳一個訊息
-      return "登入連結已發送到您的電子郵件！"
+
+      return "登入連結已發送！請檢查您的信箱，點擊連結完成認證。";
     },
 
     /**
@@ -84,15 +91,15 @@ export const useAuthStore = defineStore('auth', {
      */
     async signOut() {
       this.loading = true
-      
+
       const { error } = await supabase.auth.signOut()
-      
+
       this.loading = false
 
       if (error) {
         throw new Error(`登出失敗: ${error.message}`)
       }
-      
+
       // 登出成功後，清除 Pinia 狀態
       this.session = null
       this.user = null
