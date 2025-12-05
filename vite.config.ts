@@ -1,8 +1,17 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
-  base: '/KaiGO/',
-  plugins: [vue()],
+  // *** 確保這裡的 base 和您的 GitHub 儲存庫名稱一致 ***
+  base: '/KaiGO/', 
+  plugins: [
+    vue(),
+  ],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  }
 })
