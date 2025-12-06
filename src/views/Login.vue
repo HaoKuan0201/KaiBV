@@ -83,7 +83,3 @@ watch(() => authStore.isLoggedIn, (isLoggedIn) => {
     </v-row>
   </v-container>
 </template>
-
-<style scoped>
-/* Vuetify 已經提供了大部分樣式，這裡不需要額外的 scoped CSS */
-</style>

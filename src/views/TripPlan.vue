@@ -1,187 +1,153 @@
 <template>
-  <v-app :data-theme="theme" id="trip-plan-app">
-    <v-app-bar class="app-header" :elevation="4" :style="{ top: 0, position: 'sticky', zIndex: 100 }">
-      <div class="header-top">
-        <div class="header-titles">
-          <h1>{{ appData.title || '行程規劃' }}</h1>
-          <p class="subtitle">{{ tripDateRange }}</p>
+  <div id="trip-plan-content">
+
+    <div class="trip-header-placeholder">
+      <v-container>
+        <div class="header-top">
+          <div class="header-titles">
+            <h1>{{ appData.title || '行程規劃' }}</h1>
+            <p class="subtitle">{{ tripDateRange }}</p>
+          </div>
+
+          <div class="header-controls">
+            <a :href="mapBookmarkUrl" target="_blank" class="v-btn v-btn--icon v-theme--dark text-primary" title="開啟地圖">
+              <v-icon size="24">mdi-map-marker-multiple</v-icon>
+            </a>
+
+            <v-btn v-if="canEdit" :color="isEditMode ? 'accent' : 'default'" variant="tonal" icon
+              @click="toggleEditMode">
+              <v-icon>{{ isEditMode ? 'mdi-check' : 'mdi-pencil' }}</v-icon>
+            </v-btn>
+          </div>
         </div>
+      </v-container>
+    </div>
 
-        <div class="header-controls">
-          <v-menu offset-y>
-            <template v-slot:activator="{ props }">
-              <v-btn v-bind="props" icon class="icon-btn" variant="flat" aria-label="更多選項">
-                <v-icon>mdi-dots-vertical</v-icon>
-              </v-btn>
-            </template>
-
-            <v-list class="more-menu-dropdown">
-
-              <v-list-item @click="toggleTheme">
-                <v-list-item-title class="theme-toggle-btn">
-                  <v-icon size="20">{{ theme === 'dark' ? 'mdi-white-balance-sunny' : 'mdi-weather-night' }}</v-icon>
-                  切換主題
-                </v-list-item-title>
-              </v-list-item>
-
-            </v-list>
-          </v-menu>
-
-          <a :href="mapBookmarkUrl" target="_blank" class="icon-btn map-bookmark-btn" aria-label="開啟地圖書籤">
-            <v-icon>mdi-map-marker-multiple</v-icon>
-          </a>
-
-          <v-btn v-if="canEdit" class="icon-btn edit-toggle-btn" :class="{ active: isEditMode }" @click="toggleEditMode"
-            variant="flat" :title="isEditMode ? '結束編輯模式' : '切換編輯模式'" aria-label="切換編輯模式">
-            <v-icon v-if="isEditMode">mdi-check</v-icon>
-            <v-icon v-else>mdi-pencil</v-icon>
-          </v-btn>
-        </div>
-      </div>
-    </v-app-bar>
-
-    <nav class="day-nav" :class="{ hide: !navIsVisible, show: navIsVisible }">
+    <nav class="day-nav" :class="{ hide: !navIsVisible }" style="top: 64px;">
       <div class="nav-container" ref="navContainerRef">
         <button v-for="(day, index) in appData.days" :key="index"
-          :class="{ 'nav-btn': true, active: index === currentDayIndex }" @click="changeDay(index)" aria-label="切換日期">
-          {{ day.day }} ({{ formatDayDate(day.fullDate) }})
+          :class="['nav-btn', { active: index === currentDayIndex }]" @click="changeDay(index)">
+          {{ day.day }} <span style="font-size: 0.8em; opacity: 0.8;">({{ formatDayDate(day.fullDate) }})</span>
         </button>
-        <v-btn v-if="isEditMode" icon size="small" variant="flat" class="add-day-btn" @click="startAddDay">
-          <v-icon>mdi-plus</v-icon>
-        </v-btn>
+        <v-btn v-if="isEditMode" icon="mdi-plus" size="small" variant="text" class="ml-2" @click="startAddDay" />
       </div>
     </nav>
 
-    <v-main id="swipe-container" class="schedule-container">
-      <v-container fluid class="pa-0">
-        <div v-if="appData.days && appData.days.length > 0">
-          <div style="text-align: center; padding-top: 20px;">
-            <h2 class="day-theme">{{ currentDay.theme }}</h2>
-          </div>
+    <div class="schedule-container">
+      <div v-if="appData.days && appData.days.length > 0">
+        <div class="text-center">
+          <h2 class="day-theme">{{ currentDay.theme }}</h2>
+        </div>
 
-          <div class="timeline">
-            <div v-for="(event, eventIndex) in currentDay.events" :key="eventIndex"
-              :id="`card-${currentDayIndex}-${eventIndex}`" :class="['event-card']">
-              <div class="event-header">
-                <span class="event-time">{{ event.time }}</span>
-                <div v-if="isEditMode" class="edit-controls">
-                  <v-btn icon size="small" variant="text" @click="startEditEvent(eventIndex)" class="edit-icon">
-                    ✏️
-                  </v-btn>
-                  <v-btn icon size="small" variant="text" @click="deleteEvent(eventIndex)" class="delete-icon">
-                    🗑️
-                  </v-btn>
-                </div>
+        <div class="timeline">
+          <div v-for="(event, eventIndex) in currentDay.events" :key="eventIndex"
+            :id="`card-${currentDayIndex}-${eventIndex}`" class="event-card">
+
+            <div class="event-header">
+              <span class="event-time">{{ event.time }}</span>
+              <div v-if="isEditMode">
+                <v-btn icon="mdi-pencil" size="x-small" variant="text" color="primary"
+                  @click="startEditEvent(eventIndex)" />
+                <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click="deleteEvent(eventIndex)" />
               </div>
+            </div>
 
-              <div class="event-location-group">
-                <div class="event-location">{{ event.location }}</div>
-                <a v-if="event.mapURL" :href="event.mapURL" target="_blank" class="map-icon" aria-label="地圖連結">
-                  <v-icon size="20">mdi-map-marker</v-icon>
+            <div class="event-location-group">
+              <div class="event-location">
+                {{ event.location }}
+                <a v-if="event.mapURL" :href="event.mapURL" target="_blank" class="text-secondary ml-2">
+                  <v-icon size="18">mdi-map-marker</v-icon>
                 </a>
-                <a v-if="event.noteURL" :href="event.noteURL" target="_blank" class="note-icon" aria-label="備註連結">
+                <a v-if="event.noteURL" :href="event.noteURL" target="_blank" class="text-secondary ml-2"
+                  style="text-decoration: none;">
                   🚀
                 </a>
               </div>
+            </div>
 
-              <div class="event-details">
-                <span :class="['badge', getTransportClass(event.transport)]">
-                  {{ getTransportIcon(event.transport) }} {{ event.transport }}
-                </span>
-              </div>
+            <div class="mb-3">
+              <span :class="['badge', getTransportClass(event.transport)]">
+                {{ getTransportIcon(event.transport) }} {{ event.transport }}
+              </span>
+            </div>
 
-              <div v-if="event.notes" class="notes-container">
-                <div :class="['event-notes', { collapsed: !expandedNotes[eventIndex] }]"
-                  :ref="el => setNoteRef(el, eventIndex)">
-                  <div v-html="formatNotes(event.notes)"></div>
-                </div>
-                <button class="toggle-notes-btn" @click="toggleNotes(eventIndex)">
-                  {{ expandedNotes[eventIndex] ? '收起備註 🔼' : '展開備註 🔽' }}
-                </button>
-              </div>
+            <div v-if="event.notes" class="event-notes">
+              <div :style="{ maxHeight: expandedNotes[eventIndex] ? 'none' : '60px', overflow: 'hidden' }"
+                v-html="formatNotes(event.notes)" />
+              <v-btn variant="text" density="compact" size="small" color="secondary" class="mt-2 px-0"
+                @click="expandedNotes[eventIndex] = !expandedNotes[eventIndex]">
+                {{ expandedNotes[eventIndex] ? '收起' : '展開更多' }}
+              </v-btn>
             </div>
           </div>
-
-          <v-btn v-if="isEditMode" block class="add-event-btn" @click="startAddEvent">
-            + 新增行程
-          </v-btn>
-
         </div>
-        <div v-else style="text-align: center; padding: 50px;">
-          <v-progress-circular v-if="isLoading" indeterminate color="primary"></v-progress-circular>
-          <h2 v-else>載入中... 或資料為空</h2>
-        </div>
-      </v-container>
-    </v-main>
 
-    <v-dialog v-model="modalVisible" max-width="450px" persistent>
-      <v-card class="modal-content">
-        <v-card-title class="text-center">
-          <h3 id="modal-title">{{ isNewEvent ? '新增行程' : '編輯行程' }}</h3>
+        <v-btn v-if="isEditMode" block color="secondary" variant="tonal" class="mt-4" @click="startAddEvent">
+          <v-icon start>mdi-plus</v-icon> 新增行程
+        </v-btn>
+
+      </div>
+      <div v-else class="text-center py-12">
+        <v-progress-circular v-if="isLoading" indeterminate color="primary" />
+        <h3 v-else class="text-muted">暫無行程資料</h3>
+      </div>
+    </div>
+
+    <v-dialog v-model="modalVisible" max-width="500px">
+      <v-card class="modal-content pa-4 rounded-xl">
+        <v-card-title class="text-center font-weight-bold">
+          {{ isNewEvent ? '新增行程' : '編輯行程' }}
         </v-card-title>
         <v-card-text>
           <v-form @submit.prevent="handleSaveEvent">
-            <input type="hidden" v-model="modalEventData.dayIndex">
-            <input type="hidden" v-model="modalEventData.eventIndex">
-
-            <div class="form-group">
-              <label for="event-time-input">時間 (格式: HH:MM 或 HH:MM-HH:MM)</label>
-              <v-text-field v-model="modalEventData.time" id="event-time-input" density="compact" required
-                hide-details></v-text-field>
-            </div>
-
-            <div class="form-group">
-              <label for="event-location-input">地點/活動</label>
-              <v-text-field v-model="modalEventData.location" id="event-location-input" density="compact" required
-                hide-details></v-text-field>
-            </div>
-
-            <div class="form-group">
-              <label for="event-map-url-input">地圖連結 (可選)</label>
-              <v-text-field v-model="modalEventData.mapURL" id="event-map-url-input" type="url" density="compact"
-                hide-details></v-text-field>
-            </div>
-
-            <div class="form-group">
-              <label for="event-note-url-input">備註連結 (可選，例如預訂網址)</label>
-              <v-text-field v-model="modalEventData.noteURL" id="event-note-url-input" type="url" density="compact"
-                hide-details></v-text-field>
-            </div>
-
-            <div class="form-group">
-              <label for="event-transport-input">交通方式 (例如: 步行, BTS, Bolt)</label>
-              <v-text-field v-model="modalEventData.transport" id="event-transport-input" density="compact" required
-                hide-details></v-text-field>
-            </div>
-
-            <div class="form-group">
-              <label for="event-notes-input">備註 (可選)</label>
-              <v-textarea v-model="modalEventData.notes" id="event-notes-input" rows="3" density="compact"
-                hide-details></v-textarea>
-            </div>
-
-            <div class="button-group">
-              <v-btn class="cancel-btn" @click="closeEditModal" variant="flat">取消</v-btn>
-              <v-btn type="submit" class="save-btn" variant="flat">儲存</v-btn>
+            <v-row dense>
+              <v-col cols="12">
+                <v-text-field label="時間" v-model="modalEventData.time" variant="outlined" density="compact"
+                  hint="格式: HH:MM" />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field label="地點/活動" v-model="modalEventData.location" variant="outlined" density="compact" />
+              </v-col>
+              <v-col cols="12">
+                <v-select label="交通方式" v-model="modalEventData.transport"
+                  :items="['步行', 'BTS', 'MRT', 'Bolt', '船', '包車', '飛機']" variant="outlined" density="compact" />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field label="地圖連結" v-model="modalEventData.mapURL" variant="outlined" density="compact"
+                  prepend-inner-icon="mdi-map-marker" />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field label="備註連結" v-model="modalEventData.noteURL" variant="outlined" density="compact"
+                  prepend-inner-icon="mdi-link" />
+              </v-col>
+              <v-col cols="12">
+                <v-textarea label="詳細備註" v-model="modalEventData.notes" variant="outlined" density="compact" rows="3" />
+              </v-col>
+            </v-row>
+            <div class="d-flex justify-end gap-2 mt-4">
+              <v-btn variant="text" @click="modalVisible = false">取消</v-btn>
+              <v-btn color="secondary" type="submit">儲存</v-btn>
             </div>
           </v-form>
         </v-card-text>
       </v-card>
     </v-dialog>
 
-    <v-snackbar v-model="toast.visible" :timeout="3000" :color="toast.color" location="top right" multi-line>
+    <v-snackbar v-model="toast.visible" :color="toast.color" location="top" timeout="2000">
       {{ toast.message }}
     </v-snackbar>
-  </v-app>
+  </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { fetchTripData, saveTripData } from '../lib/supabaseTrips';
-import { supabase } from '../lib/supabaseClient';
+import { useAuthStore } from '../stores/useAuthStore';
 
 const TARGET_TITLE = '曼谷五日自由行 (11/27 - 12/1)';
 const mapBookmarkUrl = "https://www.google.com/maps/d/u/0/edit?mid=1pJlG73WanZkVkTSFvt3GLpMCDVU8heQ&ll=13.798196927110428%2C100.54907266665649&z=17";
+
+const authStore = useAuthStore();
 
 const appData = ref({ title: '曼谷五日自由行', days: [] });
 const currentDayIndex = ref(0);
@@ -189,15 +155,10 @@ const isEditMode = ref(false);
 const modalVisible = ref(false);
 const isNewEvent = ref(false);
 const isLoading = ref(true);
-const theme = ref(localStorage.getItem('theme') || 'dark');
 const navIsVisible = ref(true);
-
-const userRole = ref('');
 
 const lastScrollY = ref(0);
 const expandedNotes = reactive({});
-
-const noteRefs = ref([]);
 
 const modalEventData = reactive({
   dayIndex: -1,
@@ -216,36 +177,8 @@ const toast = reactive({
   color: 'success',
 });
 
-const fetchUserRole = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    userRole.value = 'guest';
-    return;
-  }
-
-  const userId = user.id;
-
-  const { data, error } = await supabase
-    .from('T_KaiGO_Users')
-    .select('role')
-    .eq('user_uuid', userId)
-    .limit(1);
-
-  if (error) {
-    userRole.value = 'viewer';
-    return;
-  }
-
-  if (data && data.length > 0) {
-    userRole.value = data[0].role;
-  } else {
-    userRole.value = 'viewer';
-  }
-};
-
 const canEdit = computed(() => {
-  const role = userRole.value;
+  const role = authStore.role;
   return role === 'admin' || role === 'editor';
 });
 
@@ -307,53 +240,13 @@ const sortEventsByTime = (events) => {
   });
 };
 
-const setNoteRef = (el, index) => {
-  if (el) {
-    noteRefs.value[index] = el;
-  }
-};
-
 const formatNotes = (text) => {
   if (!text) return "";
-
   const lines = text.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  let html = '<ul>';
-
-  const applyHighlighting = (item) => {
-    let itemHtml = item;
-
-    itemHtml = itemHtml.replace(/(\([^)]+\))/g, (match) => {
-      return `<span class="highlight-parentheses">${match}</span>`;
-    });
-
-    itemHtml = itemHtml.replace(/(\b\d+[\s%個]*)/g, (match) => {
-      return `<span class="price-info">${match}</span>`;
-    });
-
-    return itemHtml;
-  };
+  let html = '<ul style="padding-left: 20px; margin: 0;">';
 
   lines.forEach(line => {
-    const separatorIndex = line.indexOf('-');
-
-    if (separatorIndex !== -1 && (separatorIndex > 0 || separatorIndex < line.length - 1)) {
-      const floorTitle = applyHighlighting(line.substring(0, separatorIndex).trim());
-      const content = line.substring(separatorIndex + 1).trim();
-
-      html += `<li class="floor-section"><h3 class="floor-title">✨ ${floorTitle}</h3><ul class="floor-content-list">`;
-      const contentItems = content.split(/\s*(?:、|,)\s*(?![^(]*\))/).map(item => item.trim()).filter(item => item.length > 0);
-
-      contentItems.forEach(item => {
-        const itemHtml = applyHighlighting(item);
-        html += `<li>${itemHtml}</li>`;
-      });
-
-      html += `</ul></li>`;
-
-    } else if (line.length > 0) {
-      const lineHtml = applyHighlighting(line);
-      html += `<li class="floor-section"><h3>✨${lineHtml}</h3></li>`;
-    }
+    html += `<li style="margin-bottom: 4px;">${line}</li>`;
   });
 
   html += '</ul>';
@@ -373,7 +266,7 @@ const loadData = async () => {
 
 const saveData = () => {
   saveTripData(appData.value);
-  showToast('✅ 行程已成功儲存至雲端！', 'success');
+  showToast('✅ 行程已成功儲存！', 'success');
 };
 
 const determineInitialDay = () => {
@@ -403,21 +296,11 @@ const initApp = () => {
   isLoading.value = false;
 };
 
-const toggleTheme = () => {
-  const newTheme = theme.value === 'dark' ? 'light' : 'dark';
-  theme.value = newTheme;
-  localStorage.setItem('theme', newTheme);
-};
-
 const changeDay = (index) => {
   currentDayIndex.value = index;
   updateNavState();
   Object.keys(expandedNotes).forEach(key => expandedNotes[key] = false);
-
-  window.scrollTo({
-    top: 0,
-    behavior: 'smooth'
-  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const updateNavState = () => {
@@ -442,7 +325,7 @@ const startAddEvent = () => {
   modalEventData.location = '';
   modalEventData.mapURL = '';
   modalEventData.noteURL = '';
-  modalEventData.transport = '';
+  modalEventData.transport = '步行';
   modalEventData.notes = '';
   modalVisible.value = true;
 };
@@ -459,10 +342,6 @@ const startEditEvent = (eventIndex) => {
   modalEventData.transport = event.transport;
   modalEventData.notes = event.notes;
   modalVisible.value = true;
-};
-
-const closeEditModal = () => {
-  modalVisible.value = false;
 };
 
 const handleSaveEvent = () => {
@@ -486,46 +365,24 @@ const handleSaveEvent = () => {
 
   sortEventsByTime(appData.value.days[dayIndex].events);
   saveData();
-  closeEditModal();
+  modalVisible.value = false;
 };
 
 const deleteEvent = (eventIndex) => {
   if (!confirm("確定要刪除此行程嗎？")) return;
-
   const dayIndex = currentDayIndex.value;
   appData.value.days[dayIndex].events.splice(eventIndex, 1);
   saveData();
-
   sortEventsByTime(appData.value.days[dayIndex].events);
-  showToast('🗑️ 行程已刪除並儲存！', 'info');
-};
-
-const toggleNotes = (eventIndex) => {
-  const isExpanded = expandedNotes[eventIndex];
-  expandedNotes[eventIndex] = !isExpanded;
-
-  nextTick(() => {
-    const notesElement = noteRefs.value[eventIndex];
-    if (notesElement) {
-      notesElement.style.maxHeight = expandedNotes[eventIndex] ? notesElement.scrollHeight + "px" : '100px';
-    }
-  });
 };
 
 const handleScroll = () => {
   const currentScrollY = window.scrollY;
-  const dayNav = document.querySelector('.day-nav');
-
-  if (currentScrollY > lastScrollY.value && currentScrollY > 150) {
-    dayNav?.classList.remove('show');
-    dayNav?.classList.add('hide');
+  if (currentScrollY > lastScrollY.value && currentScrollY > 100) {
     navIsVisible.value = false;
   } else if (currentScrollY < lastScrollY.value) {
-    dayNav?.classList.remove('hide');
-    dayNav?.classList.add('show');
     navIsVisible.value = true;
   }
-
   lastScrollY.value = currentScrollY;
 };
 
@@ -534,20 +391,13 @@ const startAddDay = () => {
 };
 
 onMounted(async () => {
-  document.body.setAttribute('data-theme', theme.value);
-
-  await fetchUserRole();
-
   const data = await loadData();
   appData.value = data;
-
   initApp();
-
   window.addEventListener('scroll', handleScroll);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll);
 });
-
 </script>

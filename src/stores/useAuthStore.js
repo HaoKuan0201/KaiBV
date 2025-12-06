@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import router from '@/router' // ⬅️ 導入導出的 router 實例
 import { supabase } from '../lib/supabaseClient.js'
 
 export const useAuthStore = defineStore('auth', {
@@ -18,6 +19,7 @@ export const useAuthStore = defineStore('auth', {
 
     actions: {
         async fetchUserRole(userId) {
+            console.log(`User Id fetched: ${this.userId}`)
             if (!userId) {
                 this.userRole = 'viewer'
                 return
@@ -28,7 +30,7 @@ export const useAuthStore = defineStore('auth', {
                 .select('role')
                 .eq('user_uuid', userId)
                 .limit(1)
-
+                
             if (error) {
                 this.userRole = 'viewer'
                 return
@@ -42,19 +44,38 @@ export const useAuthStore = defineStore('auth', {
         },
 
         async fetchSession() {
-            this.loading = true
 
             const { data: { session }, error } = await supabase.auth.getSession()
 
             if (error) {
                 console.error('Error fetching session:', error.message)
             } else {
+                debugger
+                console.log('fetchSession session:' + session)
                 this.session = session
                 this.user = session?.user || null
                 if (this.user) {
                     await this.fetchUserRole(this.user.id)
                 }
             }
+        },
+
+        async signInDev(devUser) {
+            this.loading = true
+
+            const mockSession = {
+                access_token: 'MOCK_DEV_TOKEN',
+                user: {
+                    id: devUser.id,
+                    email: devUser.email,
+                    raw_user_meta_data: {
+                        name: devUser.name,
+                    },
+                },
+            }
+            this.session = mockSession
+            this.user = mockSession.user
+            this.userRole = devUser.role
 
             this.loading = false
         },
@@ -98,6 +119,7 @@ export const useAuthStore = defineStore('auth', {
 
         setupAuthListener() {
             supabase.auth.onAuthStateChange(async (_event, session) => {
+                console.log('setupAuthListener session:' + session)
                 this.session = session
                 this.user = session?.user || null
                 if (this.user) {
@@ -105,7 +127,52 @@ export const useAuthStore = defineStore('auth', {
                 } else {
                     this.userRole = 'viewer'
                 }
+                this.loading = false
             })
+        },
+
+        async login() {
+            if(this.isLoggedIn){
+                if (import.meta.env.DEV) {
+                    try {
+                        const devUser = {
+                            id: '4c04c86f-eb98-41fc-a686-dc44a2c91de0',
+                            name: 'Kai',
+                            email: 'kai@dev.test',
+                            role: 'admin'
+                        }
+                        await this.signInDev(devUser)
+                        return '開發模式：已自動登入 (admin)'
+                    } catch (e) {
+                        console.error('Dev auto-login failed:', e)
+                        throw new Error('Dev auto-login failed')
+                    }
+                } else {
+                    await this.fetchSession()
+                    this.setupAuthListener()
+                    return '生產模式：已初始化認證'
+                }
+            }
+            else{
+                if (import.meta.env.DEV) {
+                    try {
+                        const devUser = {
+                            id: '4c04c86f-eb98-41fc-a686-dc44a2c91de0',
+                            name: 'Kai',
+                            email: 'z7032541@gmail.com',
+                            role: 'admin'
+                        }
+                        await this.signInDev(devUser)
+                        return '開發模式：已自動登入 (admin)'
+                    } catch (e) {
+                        console.error('Dev auto-login failed:', e)
+                        throw new Error('Dev auto-login failed')
+                    }
+                } else {
+                    await router.push({ name: 'Login' })
+                    return '生產模式：請前往登入頁面進行認證'
+                }
+            }
         }
     },
 })
