@@ -68,7 +68,6 @@
             <!-- 提示 -->
             <v-alert type="info" variant="tonal" rounded="lg" class="mt-6 mb-0">
               <div class="d-flex align-center">
-                <v-icon color="info" class="mr-2">mdi-information</v-icon>
                 <span class="text-caption">若沒有密碼，請聯絡 <strong>Kai</strong></span>
               </div>
             </v-alert>
@@ -88,7 +87,7 @@
     </v-row>
 
     <!-- Snackbar -->
-    <v-snackbar v-model="snackbar.show" :timeout="snackbar.timeout">
+    <v-snackbar v-model="snackbar.show" :timeout="snackbar.timeout" color="success">
       {{ snackbar.message }}
       <template v-slot:actions>
         <v-btn color="white" variant="text" @click="snackbar.show = false">關閉</v-btn>
@@ -145,19 +144,19 @@ const handleLogin = async () => {
   try {
     // 調用 useAuthStore 的 login 函數，並傳入帳號
     const username = form.username
+    isLoading.value = true
+    
     await authStore.login(username)
     
     snackbar.message = `歡迎回來，${username}！`
     snackbar.show = true
 
     // 登入成功，跳轉到首頁
-    setTimeout(() => {
-      router.push('/')
-    }, 1500)
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    await router.push('/')
   } catch (error: any) {
     errorMessage.value = error.message || '登入失敗，請稍後重試'
     console.error('Login error:', error)
-  } finally {
     isLoading.value = false
   }
 }

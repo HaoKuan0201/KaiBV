@@ -5,19 +5,27 @@
       <v-container>
         <div class="header-top">
           <div class="header-titles">
-            <h1>{{ appData.title || '行程規劃' }}</h1>
+            <h1>{{ TARGET_TITLE || '行程規劃' }}</h1>
             <p class="subtitle">{{ tripDateRange }}</p>
           </div>
 
           <div class="header-controls">
-            <a :href="mapBookmarkUrl" target="_blank" class="v-btn v-btn--icon v-theme--dark text-primary" title="開啟地圖">
-              <v-icon size="24">mdi-map-marker-multiple</v-icon>
-            </a>
+            <v-tooltip text="開啟地圖">
+              <template v-slot:activator="{ props }">
+                <v-btn v-bind="props" icon color="primary" variant="text" :href="mapBookmarkUrl" target="_blank">
+                  <v-icon size="24">mdi-map-marker-multiple</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
 
-            <v-btn v-if="canEdit" :color="isEditMode ? 'accent' : 'default'" variant="tonal" icon
-              @click="toggleEditMode">
-              <v-icon>{{ isEditMode ? 'mdi-check' : 'mdi-pencil' }}</v-icon>
-            </v-btn>
+            <v-tooltip :text="isEditMode ? '完成編輯' : '編輯行程'">
+              <template v-slot:activator="{ props }">
+                <v-btn v-if="canEdit" v-bind="props" :color="isEditMode ? 'success' : 'primary'" icon variant="text"
+                  @click="toggleEditMode">
+                  <v-icon>{{ isEditMode ? 'mdi-check' : 'mdi-pencil' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
           </div>
         </div>
       </v-container>

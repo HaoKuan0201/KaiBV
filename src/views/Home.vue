@@ -7,7 +7,7 @@
           <div class="hero-overlay" />
           <div class="hero-content">
             <h1 class="text-h3 font-weight-bold mb-4">
-              讓您的旅程<br>從這裡開始 ✈️
+              讓您的旅程<br>從這裡開始<br><img :src="logoUrl" width="180px"/>
             </h1>
             <p class="text-h6 mb-8 opacity-90">
               簡單、高效、協作的旅遊規劃助手
@@ -131,6 +131,7 @@
 import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/useAuthStore.js'
+import logoUrl from '../../public/images/Logo.png?url'
 
 const router = useRouter()
 const authStore = useAuthStore()

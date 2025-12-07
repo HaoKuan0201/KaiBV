@@ -388,3 +388,14 @@ footer {
 :deep(.v-alert) {
   border-radius: 8px;
 }
+
+.logo-img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.logo-img:hover {
+  transform: scale(1.05);
+}
