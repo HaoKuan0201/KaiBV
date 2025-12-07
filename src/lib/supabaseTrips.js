@@ -4,100 +4,101 @@ import { useAuthStore } from '../stores/useAuthStore';
 const TARGET_TABLE = 'T_KaiGO_Trips'
 
 export async function fetchAllTripTitle() {
-  console.log('嘗試從 Supabase 讀取所有行程標題...');
+  const { data, error } = await supabase
+    .from(TARGET_TABLE)
+    .select('id, city, title, start_date, end_date')
+    .order('start_date', { ascending: false });
+
+  if (error) {
+    console.error(error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function fetchTripData(id) {
+  if (!id) return { success: false, message: '無效的 ID', data: null };
 
   const { data, error } = await supabase
     .from(TARGET_TABLE)
-    .select('title')
-    .order('title', { ascending: true });
+    .select('json_data, city, title')
+    .eq('id', id)
+    .single();
 
   if (error) {
-    console.error('從 Supabase 讀取行程標題失敗:', error.message);
-    return [];
+    return { success: false, message: error.message, data: null };
   }
 
-  if (data && data.length > 0) {
-    const titles = data.map(item => item.title);
-    const uniqueTitles = [...new Set(titles)];
-    console.log('行程標題讀取成功！', uniqueTitles);
-    return uniqueTitles;
-  } else {
-    console.log('未找到任何行程資料。');
-    return [];
-  }
+  return { 
+    success: true, 
+    message: '載入成功', 
+    data: {
+      ...data.json_data,
+      city: data.city,
+      title: data.title
+    }
+  };
 }
 
-export async function fetchTripData(targetTitle, storageKey, checkSuffix, costSuffix) {
-  console.log('嘗試從 Supabase 讀取資料...');
-
-  const { data, error } = await supabase
-    .from(TARGET_TABLE)
-    .select('json_data')
-    .eq('title', targetTitle)
-    .limit(1);
-
-  if (error) {
-    console.error('從 Supabase 讀取資料失敗:', error.message);
-    return { success: false, message: `雲端資料讀取失敗: ${error.message}`, data: null };
-  }
-
-  if (data && data.length > 0) {
-    console.log('資料讀取成功！');
-    const tripDataFromDB = data[0].json_data;
-    return { success: true, message: '已從雲端更新並載入最新行程！', data: tripDataFromDB };
-    
-  } else {
-    console.log(`未找到標題為 "${targetTitle}" 的行程資料。`);
-    return { success: false, message: '未找到最新雲端行程資料，使用本地數據。', data: null };
-  }
-}
-
-export async function saveTripData(newTripJson) {
-  if (!newTripJson || !newTripJson.title) {
-    return { success: false, message: '儲存失敗：資料格式錯誤。' };
-  }
-
+export async function saveTripData(tripData, city, title) {
   const authStore = useAuthStore();
-  const currentTitle = newTripJson.title;
-  const days = newTripJson.days || [];
+  const userName = authStore.name ? authStore.userName : 'anonymous';
+  const days = tripData.days || [];
+  
+  const startDate = days.length > 0 ? days[0].fullDate : null;
+  const endDate = days.length > 0 ? days[days.length - 1].fullDate : null;
 
-  const user = authStore.user;
-  const userName = authStore.name
-    ? authStore.userName
-    : 'anonymous';
-
-  const dataToUpdate = {
-    start_date: days.length > 0 ? days[0].fullDate : null,
-    end_date: days.length > 0 ? days[days.length - 1].fullDate : null,
-    json_data: newTripJson,
+  const payload = {
+    title: title,
+    city: city,
+    start_date: startDate,
+    end_date: endDate,
+    json_data: tripData,
     insert_id: userName,
     insert_dt: new Date().toISOString(),
   };
 
-  console.log(`嘗試將資料更新到 Supabase (Title: ${currentTitle}, User Name: ${userName})...`);
+  let query = supabase.from(TARGET_TABLE);
+  let result;
 
-  const { data, error } = await supabase
-    .from(TARGET_TABLE)
-    .update(dataToUpdate)
-    .eq('title', currentTitle)
-    .select('insert_dt');
+  if (tripData.id) {
+    result = await query.update(payload).eq('id', tripData.id).select();
+  } else {
+    result = await query.insert(payload).select();
+  }
+
+  const { data, error } = result;
 
   if (error) {
-    console.error('❌ Supabase 明確錯誤 (可能因權限不足):', error.message, error);
-    return { success: false, message: `雲端更新失敗: ${error.message}` };
+    return { success: false, message: error.message };
   }
 
   if (data && data.length > 0) {
-    const updatedTime = data[0].insert_dt
-      ? new Date(data[0].insert_dt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      : '成功';
-      
-    const displayUserName = userName.length > 20 ? `${userName.substring(0, 8)}...` : userName;
-
-    console.log(`✅ 資料已成功更新至 Supabase。`);
-    return { success: true, message: `雲端儲存成功！最後更新時間：${updatedTime} (操作者: ${displayUserName})` };
-  } else {
-    console.warn(`⚠️ 儲存失敗：Supabase 回報更新了 0 行。請確認行程標題和用戶權限是否正確。`);
-    return { success: false, message: '雲端更新未變動或權限不足：請檢查行程標題是否正確。' };
+    return { success: true, message: '儲存成功', newId: data[0].id };
   }
+
+  return { success: false, message: '儲存未變動' };
+}
+
+export async function deleteTrip(tripId) {
+    if (!tripId) {
+        return { success: false, message: '行程 ID 遺失。' };
+    }
+
+    try {
+        const { error } = await supabase
+            .from(TARGET_TABLE)
+            .delete()
+            .eq('id', tripId);
+
+        if (error) {
+            console.error('Error deleting trip:', error);
+            return { success: false, message: `刪除失敗: ${error.message}` };
+        }
+        return { success: true, message: '行程已成功刪除' };
+
+    } catch (e) {
+        console.error('Exception during trip deletion:', e);
+        return { success: false, message: `發生例外錯誤: ${e.message}` };
+    }
 }

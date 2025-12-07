@@ -5,11 +5,23 @@
       <v-container>
         <div class="header-top">
           <div class="header-titles">
-            <h1>{{ TARGET_TITLE || '行程規劃' }}</h1>
-            <p class="subtitle">{{ tripDateRange }}</p>
+            <div class="d-flex align-center">
+              <h1>{{ tripTitle || '行程規劃' }}</h1>
+              <v-btn v-if="isEditMode" icon="mdi-pencil" variant="text" size="small" color="primary" class="ml-2"
+                @click="openTripMetaModal(false)" />
+            </div>
+            <p class="subtitle">{{ tripCity ? tripCity + ' | ' : '' }}{{ tripDateRange }}</p>
           </div>
 
           <div class="header-controls">
+            <v-tooltip text="切換行程">
+              <template v-slot:activator="{ props }">
+                <v-btn v-bind="props" icon color="secondary" variant="text" @click="openTitleSelectionModal">
+                  <v-icon size="24">mdi-format-list-bulleted</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+
             <v-tooltip text="開啟地圖">
               <template v-slot:activator="{ props }">
                 <v-btn v-bind="props" icon color="primary" variant="text" :href="mapBookmarkUrl" target="_blank">
@@ -31,20 +43,30 @@
       </v-container>
     </div>
 
-    <nav class="day-nav" :class="{ hide: !navIsVisible }" style="top: 64px;">
+    <nav v-if="!isLoading" class="day-nav" :class="{ hide: !navIsVisible }" style="top: 64px;">
       <div class="nav-container" ref="navContainerRef">
+        <v-btn v-if="isEditMode && appData.days.length > 0" icon="mdi-minus-circle-outline" size="small" variant="text" color="error" class="mr-1" @click="deleteFirstDay" title="移除第一天" />
+        
         <button v-for="(day, index) in appData.days" :key="index"
           :class="['nav-btn', { active: index === currentDayIndex }]" @click="changeDay(index)">
           {{ day.day }} <span style="font-size: 0.8em; opacity: 0.8;">({{ formatDayDate(day.fullDate) }})</span>
         </button>
-        <v-btn v-if="isEditMode" icon="mdi-plus" size="small" variant="text" class="ml-2" @click="startAddDay" />
+        
+        <div v-if="isEditMode" class="d-flex align-center">
+            <v-btn v-if="appData.days.length > 0" icon="mdi-minus-circle-outline" size="small" variant="text" color="error" class="ml-1" @click="deleteLastDay" title="移除最後一天" />
+            <v-btn icon="mdi-plus" size="small" variant="text" class="ml-1" @click="startAddDay" title="新增天數" />
+        </div>
       </div>
     </nav>
 
     <div class="schedule-container">
-      <div v-if="appData.days && appData.days.length > 0">
-        <div class="text-center">
-          <h2 class="day-theme">{{ currentDay.theme }}</h2>
+      <div v-if="!isLoading && appData.days && appData.days.length > 0">
+        <div class="text-center position-relative">
+          <h2 class="day-theme">
+            {{ currentDay.theme }}
+            <v-btn v-if="isEditMode" icon="mdi-pencil" variant="text" size="small" color="primary"
+              class="position-absolute" @click="startEditDay" />
+          </h2>
         </div>
 
         <div class="timeline">
@@ -74,15 +96,16 @@
             </div>
 
             <div class="mb-3">
-              <span :class="['badge', getTransportClass(event.transport)]">
-                {{ getTransportIcon(event.transport) }} {{ event.transport }}
+              <span :class="['badge', getTransportClass(event.transportType)]">
+                {{ getTransportIcon(event.transportType) }}
+                <span>{{ event.transport }}</span>
               </span>
             </div>
 
             <div v-if="event.notes" class="event-notes">
               <div :style="{ maxHeight: expandedNotes[eventIndex] ? 'none' : '60px', overflow: 'hidden' }"
                 v-html="formatNotes(event.notes)" />
-              <v-btn variant="text" density="compact" size="small" color="secondary" class.mt-2.px-0
+              <v-btn variant="text" density="compact" size="small" color="secondary" class="mt-2 px-0"
                 @click="expandedNotes[eventIndex] = !expandedNotes[eventIndex]">
                 {{ expandedNotes[eventIndex] ? '收起' : '展開更多' }}
               </v-btn>
@@ -97,26 +120,113 @@
       </div>
       <div v-else class="text-center py-12">
         <v-progress-circular v-if="isLoading" indeterminate color="primary" />
-        <h3 v-else class="text-muted">暫無行程資料</h3>
+        <h3 v-else class="text-muted">暫無行程資料，請選擇或新增行程。</h3>
+        <v-btn v-if="!isLoading && isEditMode" color="primary" variant="flat" class="mt-4" @click="startAddDay">
+            <v-icon start>mdi-plus</v-icon> 新增天數
+        </v-btn>
       </div>
     </div>
 
-    <v-dialog v-model="titleSelectionModalVisible" persistent max-width="400px">
+    <v-dialog v-model="titleSelectionModalVisible" max-width="600px">
       <v-card class="pa-4 rounded-xl">
-        <v-card-title class="text-center font-weight-bold">請選擇行程</v-card-title>
+        <v-card-title class="d-flex justify-space-between align-center font-weight-bold">
+          選擇行程
+          <v-btn v-if="canEdit" color="primary" variant="flat" size="small" @click="createNewTrip">
+            <v-icon start>mdi-plus</v-icon> 建立新行程
+          </v-btn>
+        </v-card-title>
         <v-card-text>
-          <v-list density="compact" nav>
-            <v-list-item v-for="(title, index) in tripTitles" :key="index" :title="title" @click="selectTitle(title)"
-              :active="selectedTitle === title" class="rounded-lg mb-2" color="primary" />
-          </v-list>
-          <v-alert v-if="tripTitles.length === 0 && !isLoadingTitles" type="warning" variant="tonal" class="mt-4">
-            未找到任何行程標題。
-          </v-alert>
+          <v-table hover>
+            <thead>
+              <tr>
+                <th class="text-left">城市</th>
+                <th class="text-left">標題</th>
+                <th class="text-left">日期</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="trip in tripList" :key="trip.id" @click="selectTrip(trip)" style="cursor: pointer;"
+                :class="{ 'bg-grey-lighten-4': appData.id === trip.id }">
+                <td>{{ trip.city }}</td>
+                <td class="font-weight-bold">{{ trip.title }}</td>
+                <td class="text-caption">{{ trip.start_date }} ~ {{ trip.end_date }}</td>
+              </tr>
+              <tr v-if="tripList.length === 0 && !isLoadingTitles">
+                <td colspan="3" class="text-center text-muted">無資料</td>
+              </tr>
+            </tbody>
+          </v-table>
           <v-progress-circular v-if="isLoadingTitles" indeterminate color="primary" class="d-block mx-auto mt-4" />
         </v-card-text>
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="tripMetaModalVisible" persistent max-width="400px">
+      <v-card class="pa-4 rounded-xl">
+        <v-card-title class="text-center font-weight-bold">
+          {{ appData.id ? '編輯行程資訊' : '建立新行程' }}
+        </v-card-title>
+        <v-card-text>
+          <v-form @submit.prevent="saveTripMeta">
+            <v-text-field label="標題" v-model="tripMetaData.title" variant="outlined" density="compact" class="mb-2"
+              required />
+            <v-text-field label="城市" v-model="tripMetaData.city" variant="outlined" density="compact" class="mb-2" />
+            <div class="d-flex justify-end gap-2 mt-4">
+              <v-btn v-if="appData.id" variant="text" color="error" @click="deleteTripHandler">
+                      刪除行程
+                  </v-btn>
+                  <div v-else></div> <div class="d-flex gap-2">
+                      <v-btn variant="text" @click="tripMetaModalVisible = false">取消</v-btn>
+                      <v-btn color="primary" type="submit">確認</v-btn>
+                  </div>
+            </div>
+          </v-form>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="dayModalVisible" max-width="400px">
+      <v-card class="pa-4 rounded-xl">
+        <v-card-title class="text-center font-weight-bold">
+          {{ isNewDay ? '新增天數' : '編輯天數' }}
+        </v-card-title>
+        <v-card-text>
+          <v-form @submit.prevent="handleSaveDay">
+            <v-text-field type="date" label="日期" v-model="dayModalData.fullDate" variant="outlined" density="compact"
+              class="mb-2" required :disabled="true" />
+            <v-text-field label="主題" v-model="dayModalData.theme" variant="outlined" density="compact" class="mb-2" />
+            <v-alert v-if="dayError" type="error" density="compact" variant="tonal" class="mb-2">
+              {{ dayError }}
+            </v-alert>
+            <div class="d-flex justify-end gap-2 mt-4">
+              <v-btn variant="text" @click="dayModalVisible = false">取消</v-btn>
+              <v-btn color="secondary" type="submit">儲存</v-btn>
+            </div>
+          </v-form>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="dateRangeModalVisible" max-width="400px">
+        <v-card class="pa-4 rounded-xl">
+            <v-card-title class="text-center font-weight-bold">
+                快速新增天數區間
+            </v-card-title>
+            <v-card-text>
+                <v-form @submit.prevent="handleSaveDateRange">
+                    <v-text-field type="date" label="開始日期" v-model="dateRangeData.startDate" variant="outlined" density="compact" class="mb-2" required />
+                    <v-text-field type="date" label="結束日期" v-model="dateRangeData.endDate" variant="outlined" density="compact" class="mb-2" required />
+                    <v-alert v-if="dateRangeError" type="error" density="compact" variant="tonal" class="mb-2">
+                        {{ dateRangeError }}
+                    </v-alert>
+                    <div class="d-flex justify-end gap-2 mt-4">
+                        <v-btn variant="text" @click="dateRangeModalVisible = false">取消</v-btn>
+                        <v-btn color="primary" type="submit">確認新增</v-btn>
+                    </div>
+                </v-form>
+            </v-card-text>
+        </v-card>
+    </v-dialog>
 
     <v-dialog v-model="modalVisible" max-width="500px">
       <v-card class="modal-content pa-4 rounded-xl">
@@ -134,8 +244,11 @@
                 <v-text-field label="地點/活動" v-model="modalEventData.location" variant="outlined" density="compact" />
               </v-col>
               <v-col cols="12">
-                <v-select label="交通方式" v-model="modalEventData.transport"
-                  :items="['步行', 'BTS', 'MRT', 'Bolt', '船', '包車', '飛機']" variant="outlined" density="compact" />
+                <v-select label="交通方式類型" v-model="modalEventData.transportType"
+                  :items="['飛機', '大眾運輸', '汽車', '步行', '船']" variant="outlined" density="compact" />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field label="交通方式 (自由輸入)" v-model="modalEventData.transport" variant="outlined" density="compact" />
               </v-col>
               <v-col cols="12">
                 <v-text-field label="地圖連結" v-model="modalEventData.mapURL" variant="outlined" density="compact"
@@ -166,15 +279,17 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { fetchTripData, fetchAllTripTitle, saveTripData } from '../lib/supabaseTrips';
+import { fetchTripData, fetchAllTripTitle, saveTripData, deleteTrip } from '../lib/supabaseTrips';
 import { useAuthStore } from '../stores/useAuthStore';
 
-let TARGET_TITLE = '';
 const mapBookmarkUrl = "https://www.google.com/maps/d/u/0/edit?mid=1pJlG73WanZkVkTSFvt3GLpMCDVU8heQ&ll=13.798196927110428%2C100.54907266665649&z=17";
 
 const authStore = useAuthStore();
 
-const appData = ref({ title: '', days: [] });
+const appData = ref({ id: null, days: [] });
+const tripTitle = ref('');
+const tripCity = ref('');
+
 const currentDayIndex = ref(0);
 const isEditMode = ref(false);
 const modalVisible = ref(false);
@@ -192,6 +307,7 @@ const modalEventData = reactive({
   location: '',
   mapURL: '',
   noteURL: '',
+  transportType: '步行',
   transport: '',
   notes: '',
 });
@@ -202,11 +318,27 @@ const toast = reactive({
   color: 'success',
 });
 
-// 新增狀態
 const titleSelectionModalVisible = ref(false);
-const tripTitles = ref([]);
-const selectedTitle = ref('');
+const tripList = ref([]);
 const isLoadingTitles = ref(true);
+
+const tripMetaModalVisible = ref(false);
+const tripMetaData = reactive({ title: '', city: '' });
+
+const dayModalVisible = ref(false);
+const isNewDay = ref(false);
+const dayError = ref('');
+const dayModalData = reactive({
+  fullDate: '',
+  theme: '',
+});
+
+const dateRangeModalVisible = ref(false);
+const dateRangeError = ref('');
+const dateRangeData = reactive({
+    startDate: '',
+    endDate: '',
+});
 
 const canEdit = computed(() => {
   const role = authStore.role;
@@ -214,15 +346,15 @@ const canEdit = computed(() => {
 });
 
 const currentDay = computed(() => {
-  return appData.value.days[currentDayIndex.value] || { events: [] };
+  return appData.value.days[currentDayIndex.value] || { events: [], theme: '' };
 });
 
 const tripDateRange = computed(() => {
-  if (appData.value.days.length === 0) return '載入中...';
+  if (!appData.value.days || appData.value.days.length === 0) return '未設定日期';
   const firstDay = appData.value.days[0].fullDate;
   const lastDay = appData.value.days[appData.value.days.length - 1].fullDate;
-  const start = new Date(firstDay).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' }).replace('/', '/');
-  const end = new Date(lastDay).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' }).replace('/', '/');
+  const start = firstDay.replace(/-/g, '/');
+  const end = lastDay.replace(/-/g, '/');
   return `${start} - ${end}`;
 });
 
@@ -233,6 +365,7 @@ const showToast = (message, color = 'info') => {
 };
 
 const formatDayDate = (fullDate) => {
+  if (!fullDate) return '';
   const dateObj = new Date(fullDate);
   const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
   const month = dateObj.getMonth() + 1;
@@ -241,19 +374,21 @@ const formatDayDate = (fullDate) => {
   return `${month}/${date} ${weekday}`;
 };
 
-const getTransportIcon = (transport) => {
-  const t = (transport || '').toLowerCase();
-  if (t.includes('bts') || t.includes('mrt') || t.includes('飛機')) return '🚆';
-  if (t.includes('船') || t.includes('渡輪') || t.includes('ferry')) return '⛴️';
-  if (t.includes('bolt') || t.includes('包車') || t.includes('公車') || t.includes('car')) return '🚗';
+const getTransportIcon = (transportType) => {
+  const t = (transportType || '').toLowerCase();
+  if (t.includes('飛機')) return '✈️';
+  if (t.includes('大眾運輸')) return '🚆';
+  if (t.includes('汽車')) return '🚗';
+  if (t.includes('船')) return '⛴️';
   return '🚶';
 };
 
-const getTransportClass = (transport) => {
-  const t = (transport || '').toLowerCase();
-  if (t.includes('bts') || t.includes('mrt') || t.includes('飛機')) return 'trans-bts';
-  if (t.includes('船') || t.includes('渡輪') || t.includes('ferry')) return 'trans-boat';
-  if (t.includes('bolt') || t.includes('包車') || t.includes('公車') || t.includes('car')) return 'trans-car';
+const getTransportClass = (transportType) => {
+  const t = (transportType || '').toLowerCase();
+  if (t.includes('飛機')) return 'trans-plane';
+  if (t.includes('大眾運輸')) return 'trans-public';
+  if (t.includes('汽車')) return 'trans-car';
+  if (t.includes('船')) return 'trans-boat';
   return 'trans-walk';
 };
 
@@ -275,32 +410,60 @@ const formatNotes = (text) => {
   if (!text) return "";
   const lines = text.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
   let html = '<ul style="padding-left: 20px; margin: 0;">';
-
   lines.forEach(line => {
     html += `<li style="margin-bottom: 4px;">${line}</li>`;
   });
-
   html += '</ul>';
   return html;
 };
 
-const loadData = async () => {
+const loadTripList = async () => {
+  isLoadingTitles.value = true;
+  const trips = await fetchAllTripTitle();
+  isLoadingTitles.value = false;
+  if (trips) {
+    tripList.value = trips;
+  }
+};
+
+const loadData = async (id) => {
   isLoading.value = true;
-  const result = await fetchTripData(TARGET_TITLE);
+  const result = await fetchTripData(id);
 
   if (result.success) {
-    appData.value = result.data;
+    appData.value = { id: id, days: result.data.days || [] };
+    tripTitle.value = result.data.title || '';
+    tripCity.value = result.data.city || '';
     initApp();
   } else {
     showToast(`載入失敗: ${result.message}`, 'error');
-    appData.value = { title: '', days: [] };
+    appData.value = { id: null, days: [] };
+    tripTitle.value = '';
+    tripCity.value = '';
     isLoading.value = false;
   }
 };
 
-const saveData = () => {
-  saveTripData(appData.value);
-  showToast('✅ 行程已成功儲存！', 'success');
+const saveData = async () => {
+  const daysToSave = appData.value.days.map(day => ({
+    ...day,
+    events: day.events.map(event => {
+      const { transportType, ...rest } = event;
+      return transportType ? event : rest;
+    })
+  }));
+
+  const dataToSave = { id: appData.value.id, days: daysToSave };
+  const result = await saveTripData(dataToSave, tripCity.value, tripTitle.value);
+  if (result.success) {
+    showToast(result.message, 'success');
+    if (result.newId) {
+      appData.value.id = result.newId;
+    }
+    await loadTripList();
+  } else {
+    showToast(result.message, 'error');
+  }
 };
 
 const determineInitialDay = () => {
@@ -316,7 +479,6 @@ const determineInitialDay = () => {
   }
 
   const foundIndex = appData.value.days.findIndex(d => d.fullDate === todayStr);
-
   if (foundIndex !== -1) {
     currentDayIndex.value = foundIndex;
   } else {
@@ -359,7 +521,8 @@ const startAddEvent = () => {
   modalEventData.location = '';
   modalEventData.mapURL = '';
   modalEventData.noteURL = '';
-  modalEventData.transport = '步行';
+  modalEventData.transportType = '步行';
+  modalEventData.transport = '';
   modalEventData.notes = '';
   modalVisible.value = true;
 };
@@ -373,7 +536,8 @@ const startEditEvent = (eventIndex) => {
   modalEventData.location = event.location;
   modalEventData.mapURL = event.mapURL || '';
   modalEventData.noteURL = event.noteURL || '';
-  modalEventData.transport = event.transport;
+  modalEventData.transportType = event.transportType;
+  modalEventData.transport = event.transport || '';
   modalEventData.notes = event.notes;
   modalVisible.value = true;
 };
@@ -387,6 +551,7 @@ const handleSaveEvent = () => {
     location: modalEventData.location,
     mapURL: modalEventData.mapURL.trim(),
     noteURL: modalEventData.noteURL.trim(),
+    transportType: modalEventData.transportType,
     transport: modalEventData.transport,
     notes: modalEventData.notes,
   };
@@ -410,6 +575,226 @@ const deleteEvent = (eventIndex) => {
   sortEventsByTime(appData.value.days[dayIndex].events);
 };
 
+const openTitleSelectionModal = () => {
+  loadTripList();
+  titleSelectionModalVisible.value = true;
+};
+
+const selectTrip = async (trip) => {
+  titleSelectionModalVisible.value = false;
+  isLoading.value = true;
+  await loadData(trip.id);
+};
+
+const createNewTrip = () => {
+  titleSelectionModalVisible.value = false;
+  appData.value = { id: null, days: [] };
+  tripTitle.value = '';
+  tripCity.value = '';
+  isLoading.value = false;
+  openTripMetaModal(true);
+};
+
+const openTripMetaModal = (isNew) => {
+  tripMetaData.title = tripTitle.value;
+  tripMetaData.city = tripCity.value;
+  tripMetaModalVisible.value = true;
+};
+
+const saveTripMeta = () => {
+  tripTitle.value = tripMetaData.title;
+  tripCity.value = tripMetaData.city;
+  tripMetaModalVisible.value = false;
+  if (appData.value.days.length > 0) {
+    saveData();
+  }
+};
+
+const reindexDays = () => {
+  appData.value.days.forEach((day, index) => {
+    day.day = `Day ${index + 1}`;
+  });
+};
+
+const deleteFirstDay = () => {
+    if (!appData.value.days || appData.value.days.length === 0) return;
+    if (!confirm('確定要移除第一天嗎？')) return;
+    
+    appData.value.days.shift();
+    reindexDays();
+    if (currentDayIndex.value >= appData.value.days.length) {
+        currentDayIndex.value = Math.max(0, appData.value.days.length - 1);
+    }
+    saveData();
+};
+
+const deleteLastDay = () => {
+    if (!appData.value.days || appData.value.days.length === 0) return;
+    if (!confirm('確定要移除最後一天嗎？')) return;
+
+    appData.value.days.pop();
+    if (currentDayIndex.value >= appData.value.days.length) {
+        currentDayIndex.value = Math.max(0, appData.value.days.length - 1);
+    }
+    saveData();
+};
+
+const startAddDay = () => {
+  dayError.value = '';
+  dateRangeError.value = '';
+
+  if (appData.value.days.length === 0) {
+    const today = new Date().toISOString().substring(0, 10);
+    dateRangeData.startDate = today;
+    dateRangeData.endDate = today;
+    dateRangeModalVisible.value = true;
+    return;
+  }
+
+  isNewDay.value = true;
+  let nextDate = new Date();
+  if (appData.value.days.length > 0) {
+    const lastDay = appData.value.days[appData.value.days.length - 1].fullDate;
+    nextDate = new Date(lastDay);
+    nextDate.setDate(nextDate.getDate() + 1);
+  }
+  const y = nextDate.getFullYear();
+  const m = String(nextDate.getMonth() + 1).padStart(2, '0');
+  const d = String(nextDate.getDate()).padStart(2, '0');
+
+  dayModalData.fullDate = `${y}-${m}-${d}`;
+  dayModalData.theme = '';
+  dayModalVisible.value = true;
+};
+
+const startEditDay = () => {
+  isNewDay.value = false;
+  dayError.value = '';
+  const day = appData.value.days[currentDayIndex.value];
+  dayModalData.fullDate = day.fullDate;
+  dayModalData.theme = day.theme;
+  dayModalVisible.value = true;
+};
+
+const handleSaveDay = () => {
+  dayError.value = '';
+  const newFullDate = dayModalData.fullDate;
+  const newDateObj = new Date(newFullDate);
+  const m = newDateObj.getMonth() + 1;
+  const d = newDateObj.getDate();
+  const shortDate = `${m}/${d}`;
+
+  if (isNewDay.value) {
+    appData.value.days.push({
+      date: shortDate,
+      day: '',
+      fullDate: newFullDate,
+      theme: dayModalData.theme,
+      events: []
+    });
+  } else {
+    const dayToEdit = appData.value.days[currentDayIndex.value];
+    dayToEdit.theme = dayModalData.theme;
+  }
+
+  appData.value.days.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
+
+  for (let i = 0; i < appData.value.days.length - 1; i++) {
+    const curr = new Date(appData.value.days[i].fullDate);
+    const next = new Date(appData.value.days[i + 1].fullDate);
+    const diffTime = Math.abs(next - curr);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 1) {
+      if (isNewDay.value) {
+        appData.value.days = appData.value.days.filter(d => d.fullDate !== newFullDate);
+      }
+      dayError.value = '日期必須連續，不可有中斷的天數。';
+      return;
+    }
+  }
+
+  reindexDays();
+
+  if (isNewDay.value) {
+    const idx = appData.value.days.findIndex(d => d.fullDate === newFullDate);
+    currentDayIndex.value = idx;
+  }
+
+  dayModalVisible.value = false;
+  saveData();
+};
+
+const handleSaveDateRange = () => {
+    dateRangeError.value = '';
+    const start = new Date(dateRangeData.startDate);
+    const end = new Date(dateRangeData.endDate);
+
+    if (start > end) {
+        dateRangeError.value = '結束日期必須晚於或等於開始日期。';
+        return;
+    }
+
+    const newDays = [];
+    let currentDate = start;
+    
+    while (currentDate <= end) {
+        const y = currentDate.getFullYear();
+        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const d = String(currentDate.getDate()).padStart(2, '0');
+        const fullDate = `${y}-${m}-${d}`;
+        const shortDate = `${m}/${d}`;
+
+        newDays.push({
+            date: shortDate,
+            day: '',
+            fullDate: fullDate,
+            theme: '',
+            events: []
+        });
+
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    appData.value.days = newDays;
+    reindexDays();
+    currentDayIndex.value = 0;
+
+    dateRangeModalVisible.value = false;
+    saveData();
+};
+
+const deleteTripHandler = async () => {
+  if (!appData.value.id) return;
+
+  if (confirm(`確定要刪除行程「${tripTitle.value}」嗎？此操作無法復原。`)) {
+    const tripIdToDelete = appData.value.id;
+    tripMetaModalVisible.value = false;
+    isLoading.value = true;
+
+    const result = await deleteTrip(tripIdToDelete);
+
+    if (result.success) {
+      showToast('行程已刪除', 'success');
+
+      await loadTripList();
+
+      if (tripList.value.length > 0) {
+        openTitleSelectionModal();
+      } else {
+        appData.value = { id: null, days: [] };
+        tripTitle.value = '';
+        tripCity.value = '';
+        isLoading.value = false;
+        isEditMode.value = true;
+      }
+    } else {
+      showToast(`刪除失敗: ${result.message}`, 'error');
+      isLoading.value = false;
+    }
+  }
+};
+
 const handleScroll = () => {
   const currentScrollY = window.scrollY;
   if (currentScrollY > lastScrollY.value && currentScrollY > 100) {
@@ -420,36 +805,16 @@ const handleScroll = () => {
   lastScrollY.value = currentScrollY;
 };
 
-const startAddDay = () => {
-  showToast('尚未實作新增日期的邏輯。', 'warning');
-};
-
-// 新增功能：處理標題選擇
-const selectTitle = async (title) => {
-  selectedTitle.value = title;
-  TARGET_TITLE = title;
-  titleSelectionModalVisible.value = false;
-
-  await loadData();
-};
-
 onMounted(async () => {
-  isLoadingTitles.value = true;
-  const titles = await fetchAllTripTitle();
-  isLoadingTitles.value = false;
-
-  if (titles && titles.length > 0) {
-    tripTitles.value = titles;
-    selectedTitle.value = titles[0];
-    titleSelectionModalVisible.value = true;
+  await loadTripList();
+  if (tripList.value.length > 0) {
+    openTitleSelectionModal();
   } else {
-    TARGET_TITLE = '';
-    showToast('未找到任何行程標題', 'warning');
-    const data = await loadData();
-    appData.value = data;
+    appData.value = { id: null, days: [] };
+    tripTitle.value = '';
+    tripCity.value = '';
     initApp();
   }
-
   window.addEventListener('scroll', handleScroll);
 });
 
