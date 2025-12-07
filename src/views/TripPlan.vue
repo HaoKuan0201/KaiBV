@@ -74,7 +74,7 @@
             <div v-if="event.notes" class="event-notes">
               <div :style="{ maxHeight: expandedNotes[eventIndex] ? 'none' : '60px', overflow: 'hidden' }"
                 v-html="formatNotes(event.notes)" />
-              <v-btn variant="text" density="compact" size="small" color="secondary" class="mt-2 px-0"
+              <v-btn variant="text" density="compact" size="small" color="secondary" class.mt-2.px-0
                 @click="expandedNotes[eventIndex] = !expandedNotes[eventIndex]">
                 {{ expandedNotes[eventIndex] ? '收起' : '展開更多' }}
               </v-btn>
@@ -92,6 +92,23 @@
         <h3 v-else class="text-muted">暫無行程資料</h3>
       </div>
     </div>
+
+    <v-dialog v-model="titleSelectionModalVisible" persistent max-width="400px">
+      <v-card class="pa-4 rounded-xl">
+        <v-card-title class="text-center font-weight-bold">請選擇行程</v-card-title>
+        <v-card-text>
+          <v-list density="compact" nav>
+            <v-list-item v-for="(title, index) in tripTitles" :key="index" :title="title" @click="selectTitle(title)"
+              :active="selectedTitle === title" class="rounded-lg mb-2" color="primary" />
+          </v-list>
+          <v-alert v-if="tripTitles.length === 0 && !isLoadingTitles" type="warning" variant="tonal" class="mt-4">
+            未找到任何行程標題。
+          </v-alert>
+          <v-progress-circular v-if="isLoadingTitles" indeterminate color="primary" class="d-block mx-auto mt-4" />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
 
     <v-dialog v-model="modalVisible" max-width="500px">
       <v-card class="modal-content pa-4 rounded-xl">
@@ -141,15 +158,15 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { fetchTripData, saveTripData } from '../lib/supabaseTrips';
+import { fetchTripData, fetchAllTripTitle, saveTripData } from '../lib/supabaseTrips';
 import { useAuthStore } from '../stores/useAuthStore';
 
-const TARGET_TITLE = '曼谷五日自由行 (11/27 - 12/1)';
+let TARGET_TITLE = '';
 const mapBookmarkUrl = "https://www.google.com/maps/d/u/0/edit?mid=1pJlG73WanZkVkTSFvt3GLpMCDVU8heQ&ll=13.798196927110428%2C100.54907266665649&z=17";
 
 const authStore = useAuthStore();
 
-const appData = ref({ title: '曼谷五日自由行', days: [] });
+const appData = ref({ title: '', days: [] });
 const currentDayIndex = ref(0);
 const isEditMode = ref(false);
 const modalVisible = ref(false);
@@ -176,6 +193,12 @@ const toast = reactive({
   message: '',
   color: 'success',
 });
+
+// 新增狀態
+const titleSelectionModalVisible = ref(false);
+const tripTitles = ref([]);
+const selectedTitle = ref('');
+const isLoadingTitles = ref(true);
 
 const canEdit = computed(() => {
   const role = authStore.role;
@@ -254,13 +277,16 @@ const formatNotes = (text) => {
 };
 
 const loadData = async () => {
+  isLoading.value = true;
   const result = await fetchTripData(TARGET_TITLE);
 
   if (result.success) {
-    return result.data;
+    appData.value = result.data;
+    initApp();
   } else {
     showToast(`載入失敗: ${result.message}`, 'error');
-    return { title: '曼谷五日自由行', days: [] };
+    appData.value = { title: '', days: [] };
+    isLoading.value = false;
   }
 };
 
@@ -390,10 +416,32 @@ const startAddDay = () => {
   showToast('尚未實作新增日期的邏輯。', 'warning');
 };
 
+// 新增功能：處理標題選擇
+const selectTitle = async (title) => {
+  selectedTitle.value = title;
+  TARGET_TITLE = title;
+  titleSelectionModalVisible.value = false;
+
+  await loadData();
+};
+
 onMounted(async () => {
-  const data = await loadData();
-  appData.value = data;
-  initApp();
+  isLoadingTitles.value = true;
+  const titles = await fetchAllTripTitle();
+  isLoadingTitles.value = false;
+
+  if (titles && titles.length > 0) {
+    tripTitles.value = titles;
+    selectedTitle.value = titles[0];
+    titleSelectionModalVisible.value = true;
+  } else {
+    TARGET_TITLE = '';
+    showToast('未找到任何行程標題', 'warning');
+    const data = await loadData();
+    appData.value = data;
+    initApp();
+  }
+
   window.addEventListener('scroll', handleScroll);
 });
 

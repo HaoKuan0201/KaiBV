@@ -14,7 +14,7 @@ const router = createRouter({
       component: Home
     },
     {
-      path: '/login',
+      path: '/Login',
       name: 'Login',
       component: Login
     },
@@ -26,37 +26,9 @@ const router = createRouter({
   ]
 })
 
-// 認證守衛 - 實現環境差異化
-// 已將 'from' 參數替換為 '_' 以解決 TS6133 錯誤
 router.beforeEach((to, _, next) => {
   const authStore = useAuthStore()
   
-  // 檢查是否處於開發模式 (npm run dev)
-  const isDevMode = import.meta.env.DEV
-  
-  if (to.meta.requiresAuth) {
-    
-    // 條件 1: 開發模式，直接放行 (跳過認證)
-    if (isDevMode) {
-      console.log("DEV Mode: Skipping authentication check for Dashboard.")
-      next()
-      return
-    }
-
-    // 條件 2: 生產模式 (haokuan0201.github.io)，執行認證檢查
-    // 檢查登入狀態
-    if (!authStore.isLoggedIn) {
-      console.log("PROD Mode: Redirecting to login.")
-      // 如果需要認證但未登入，導向登入頁面並加上 redirect 參數
-      next({ 
-        name: 'Login', 
-        query: { redirect: to.fullPath } 
-      })
-      return
-    }
-  }
-
-  // 其他情況或已登入，繼續導航
   next()
 })
 

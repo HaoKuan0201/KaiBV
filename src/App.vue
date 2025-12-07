@@ -68,16 +68,8 @@ onMounted(async () => {
   theme.global.name.value = storedTheme
   document.body.setAttribute('data-theme', storedTheme)
 
-  try {
-    if (import.meta.env.DEV) {
-      await authStore.login()
-    } else {
-      await authStore.fetchSession()
-      authStore.setupAuthListener()
-    }
-  } catch (e) {
-    console.error(e)
-  }
+  // 先從 localStorage 恢復 session
+  authStore.restoreSession()
 })
 
 const handleSignOut = async () => {

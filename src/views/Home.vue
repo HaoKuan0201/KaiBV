@@ -3,7 +3,7 @@
     <v-row justify="center" class="mb-8">
       <v-col cols="12" md="10" lg="8">
         <div class="hero-section">
-          <img src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&h=400&fit=crop" class="hero-img" alt="Hero" />
+          <img src="@/assets/images/HomeImage.jfif" class="hero-img" alt="Hero" />
           <div class="hero-overlay" />
           <div class="hero-content">
             <h1 class="text-h3 font-weight-bold mb-4">
@@ -16,11 +16,6 @@
               <v-btn size="x-large" color="white" class="text-primary font-weight-bold" @click="goToTripPlan" elevation="2">
                 <v-icon start>mdi-map-marker-path</v-icon>
                 查看行程
-              </v-btn>
-              
-              <v-btn v-if="!authStore.isLoggedIn" size="x-large" color="secondary" @click="authStore.login()" elevation="2">
-                <v-icon start>mdi-login</v-icon>
-                立即開始
               </v-btn>
             </div>
           </div>
@@ -35,7 +30,7 @@
             <v-icon>{{ authStore.isLoggedIn ? 'mdi-check-circle' : 'mdi-information' }}</v-icon>
           </template>
           <div class="d-flex flex-column">
-            <strong class="text-body-1">{{ authStore.isLoggedIn ? `歡迎回來，${authStore.userEmail}` : '訪客模式' }}</strong>
+            <strong class="text-body-1">{{ authStore.isLoggedIn ? `歡迎回來，${authStore.name}` : '訪客模式' }}</strong>
             <span class="text-caption mt-1">
               {{ authStore.isLoggedIn ? '您可以完整編輯所有行程資料' : '登入後即可編輯並儲存您的專屬行程' }}
             </span>
@@ -89,8 +84,8 @@
                   <v-icon>mdi-map</v-icon>
                 </v-avatar>
               </template>
-              <v-list-item-title>查看示範行程</v-list-item-title>
-              <v-list-item-subtitle>曼谷五日自由行範例</v-list-item-subtitle>
+              <v-list-item-title>查看行程</v-list-item-title>
+              <v-list-item-subtitle>查看旅遊行程</v-list-item-subtitle>
             </v-list-item>
             
             <v-list-item v-if="!authStore.isLoggedIn" @click="authStore.login()" rounded="lg" class="list-hover">

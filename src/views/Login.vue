@@ -1,85 +1,164 @@
+<template>
+  <v-container class="py-12">
+    <v-row justify="center">
+      <v-col cols="12" sm="8" md="6" lg="5">
+        <v-card class="login-card" elevation="4">
+          <v-card-title class="text-center py-6 bg-primary text-white">
+            <div class="d-flex flex-column align-center gap-2">
+              <v-icon size="48">mdi-login</v-icon>
+              <span class="text-h5 font-weight-bold">登入帳戶</span>
+            </div>
+          </v-card-title>
+
+          <v-card-text class="py-8">
+            <v-form @submit.prevent="handleLogin">
+              <!-- 帳號輸入 -->
+              <div class="mb-6">
+                <label class="text-subtitle-2 font-weight-bold mb-2">帳號</label>
+                <v-text-field
+                  v-model="form.username"
+                  placeholder="輸入您的帳號"
+                  prepend-inner-icon="mdi-account"
+                  variant="outlined"
+                  color="primary"
+                  rounded="lg"
+                  density="comfortable"
+                  :disabled="isLoading"
+                />
+              </div>
+
+              <!-- 密碼輸入 -->
+              <div class="mb-6">
+                <label class="text-subtitle-2 font-weight-bold mb-2">密碼</label>
+                <v-text-field
+                  v-model="form.password"
+                  placeholder="輸入密碼"
+                  prepend-inner-icon="mdi-lock"
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  :type="showPassword ? 'text' : 'password'"
+                  variant="outlined"
+                  color="primary"
+                  rounded="lg"
+                  density="comfortable"
+                  :disabled="isLoading"
+                  @click:append-inner="showPassword = !showPassword"
+                />
+              </div>
+
+              <!-- 錯誤訊息 -->
+              <v-alert v-if="errorMessage" type="error" variant="tonal" rounded="lg" class="mb-6">
+                {{ errorMessage }}
+              </v-alert>
+
+              <!-- 登入按鈕 -->
+              <v-btn
+                type="submit"
+                color="primary"
+                size="large"
+                block
+                rounded="lg"
+                class="font-weight-bold"
+                :loading="isLoading"
+              >
+                <v-icon start>mdi-login</v-icon>
+                登入
+              </v-btn>
+            </v-form>
+
+            <!-- 提示 -->
+            <v-alert type="info" variant="tonal" rounded="lg" class="mt-6 mb-0">
+              <div class="d-flex align-center">
+                <v-icon color="info" class="mr-2">mdi-information</v-icon>
+                <span class="text-caption">若沒有密碼，請聯絡 <strong>Kai</strong></span>
+              </div>
+            </v-alert>
+          </v-card-text>
+        </v-card>
+
+        <!-- 返回首頁連結 -->
+        <div class="text-center mt-6">
+          <RouterLink to="/" class="text-decoration-none">
+            <v-btn variant="text" color="primary">
+              <v-icon start>mdi-arrow-left</v-icon>
+              返回首頁
+            </v-btn>
+          </RouterLink>
+        </div>
+      </v-col>
+    </v-row>
+
+    <!-- Snackbar -->
+    <v-snackbar v-model="snackbar.show" :timeout="snackbar.timeout">
+      {{ snackbar.message }}
+      <template v-slot:actions>
+        <v-btn color="white" variant="text" @click="snackbar.show = false">關閉</v-btn>
+      </template>
+    </v-snackbar>
+  </v-container>
+</template>
+
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/useAuthStore.js'
-import { useRouter, useRoute } from 'vue-router'
 
-const authStore = useAuthStore()
 const router = useRouter()
-const route = useRoute()
+const authStore = useAuthStore()
 
-const email = ref('')
-const message = ref('')
+const form = reactive({
+  username: '',
+  password: ''
+})
+
+const showPassword = ref(false)
 const isLoading = ref(false)
-const error = ref('')
+const errorMessage = ref('')
+const snackbar = reactive({
+  show: false,
+  message: '',
+  timeout: 2000
+})
 
 const handleLogin = async () => {
+  // 驗證輸入
+  if (!form.username.trim()) {
+    errorMessage.value = '請輸入帳號'
+    return
+  }
+
+  if (!form.password) {
+    errorMessage.value = '請輸入密碼'
+    return
+  }
+
+  // 驗證密碼
+  if (form.password !== '0201') {
+    errorMessage.value = '密碼錯誤'
+    form.password = ''
+    return
+  }
+
   isLoading.value = true
-  error.value = ''
-  message.value = ''
+  errorMessage.value = ''
 
   try {
-    const resultMessage = await authStore.signInWithOtp(email.value)
-    message.value = resultMessage
+    // 調用 useAuthStore 的 login 函數，並傳入帳號
+    const username = form.username
+    await authStore.login(username)
+    
+    snackbar.message = `歡迎回來，${username}！`
+    snackbar.show = true
 
-  } catch (err: any) {
-    error.value = err.message
+    // 登入成功，跳轉到首頁
+    setTimeout(() => {
+      router.push('/')
+    }, 1500)
+  } catch (error: any) {
+    errorMessage.value = error.message || '登入失敗，請稍後重試'
+    console.error('Login error:', error)
   } finally {
     isLoading.value = false
   }
 }
-
-watch(() => authStore.isLoggedIn, (isLoggedIn) => {
-  if (isLoggedIn) {
-    const redirectTo = route.query.redirect || '/dashboard'
-    router.replace(redirectTo as string)
-  }
-}, { immediate: true })
-
 </script>
-
-<template>
-  <v-container class="fill-height" fluid>
-    <v-row align="start" justify="center" style="min-height: 70vh;" class="pt-10">
-      <v-col cols="12" sm="8" md="6" lg="5" xl="4">
-        <v-card class="pa-8 pa-sm-12 rounded-xl elevation-10" :loading="isLoading" hover>
-
-          <div class="text-center mb-8">
-            <v-avatar color="indigo-darken-2" size="60" class="mb-4 elevation-5">
-              <v-icon icon="mdiLock" size="30"></v-icon>
-            </v-avatar>
-            <h1 class="text-h4 font-weight-black text-grey-darken-3">安全登入您的旅程</h1>
-            <p class="text-subtitle-1 text-medium-emphasis mt-2">輸入電子郵件，我們使用無密碼的 Magic Link / OTP 進行認證。</p>
-          </div>
-
-          <v-form @submit.prevent="handleLogin">
-
-            <v-text-field v-model="email" label="電子郵件地址" type="email" required variant="outlined"
-              :disabled="isLoading || !!message" class="mb-4"></v-text-field>
-
-            <v-btn type="submit" color="indigo-darken-2" size="large" block :disabled="isLoading || !!message"
-              :loading="isLoading" class="mt-4">
-              <v-icon icon="mdiSend" start></v-icon>
-              發送登入連結
-            </v-btn>
-          </v-form>
-
-          <div class="mt-6">
-            <v-alert v-if="error" type="error" variant="tonal" class="mb-4">
-              <p class="font-weight-bold">❌ 認證錯誤:</p>
-              {{ error }}
-            </v-alert>
-
-            <v-alert v-if="message" type="success" variant="tonal">
-              <p class="font-weight-bold">✅ 成功發送！</p>
-              <p>{{ message }}</p>
-              <p class="mt-1">請立即檢查您的收件箱，並點擊 Magic Link 完成認證。</p>
-            </v-alert>
-          </div>
-
-          <p class="text-caption text-center text-medium-emphasis mt-6">您的資料將被安全地儲存在 Supabase 中。</p>
-
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
-</template>

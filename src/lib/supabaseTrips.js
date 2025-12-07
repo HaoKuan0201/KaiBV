@@ -3,6 +3,30 @@ import { useAuthStore } from '../stores/useAuthStore';
 
 const TARGET_TABLE = 'T_KaiGO_Trips'
 
+export async function fetchAllTripTitle() {
+  console.log('嘗試從 Supabase 讀取所有行程標題...');
+
+  const { data, error } = await supabase
+    .from(TARGET_TABLE)
+    .select('title')
+    .order('title', { ascending: true });
+
+  if (error) {
+    console.error('從 Supabase 讀取行程標題失敗:', error.message);
+    return [];
+  }
+
+  if (data && data.length > 0) {
+    const titles = data.map(item => item.title);
+    const uniqueTitles = [...new Set(titles)];
+    console.log('行程標題讀取成功！', uniqueTitles);
+    return uniqueTitles;
+  } else {
+    console.log('未找到任何行程資料。');
+    return [];
+  }
+}
+
 export async function fetchTripData(targetTitle, storageKey, checkSuffix, costSuffix) {
   console.log('嘗試從 Supabase 讀取資料...');
 
@@ -38,8 +62,8 @@ export async function saveTripData(newTripJson) {
   const days = newTripJson.days || [];
 
   const user = authStore.user;
-  const userName = user
-    ? (user.raw_user_meta_data?.name || user.email || user.id)
+  const userName = authStore.name
+    ? authStore.userName
     : 'anonymous';
 
   const dataToUpdate = {
