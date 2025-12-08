@@ -237,6 +237,9 @@
           <v-form @submit.prevent="handleSaveEvent">
             <v-row dense>
               <v-col cols="12">
+                <v-select label="天數" v-model="modalEventData.dayIndex" :items="dayOptions" item-title="title" item-value="value" variant="outlined" density="compact" />
+              </v-col>
+              <v-col cols="12">
                 <v-text-field label="時間" v-model="modalEventData.time" variant="outlined" density="compact"
                   hint="格式: HH:MM" />
               </v-col>
@@ -356,6 +359,13 @@ const tripDateRange = computed(() => {
   const start = firstDay.replace(/-/g, '/');
   const end = lastDay.replace(/-/g, '/');
   return `${start} - ${end}`;
+});
+
+const dayOptions = computed(() => {
+    return appData.value.days.map((day, index) => ({
+        title: `${day.day} (${formatDayDate(day.fullDate)})`,
+        value: index
+    }));
 });
 
 const showToast = (message, color = 'info') => {
@@ -543,7 +553,8 @@ const startEditEvent = (eventIndex) => {
 };
 
 const handleSaveEvent = () => {
-  const dayIndex = modalEventData.dayIndex;
+  const targetDayIndex = modalEventData.dayIndex;
+  const sourceDayIndex = currentDayIndex.value;
   const eventIndex = modalEventData.eventIndex;
 
   const newEvent = {
@@ -557,12 +568,17 @@ const handleSaveEvent = () => {
   };
 
   if (eventIndex === -1) {
-    appData.value.days[dayIndex].events.push(newEvent);
+    appData.value.days[targetDayIndex].events.push(newEvent);
   } else {
-    appData.value.days[dayIndex].events[eventIndex] = newEvent;
+    if (targetDayIndex === sourceDayIndex) {
+        appData.value.days[sourceDayIndex].events[eventIndex] = newEvent;
+    } else {
+        appData.value.days[sourceDayIndex].events.splice(eventIndex, 1);
+        appData.value.days[targetDayIndex].events.push(newEvent);
+    }
   }
 
-  sortEventsByTime(appData.value.days[dayIndex].events);
+  sortEventsByTime(appData.value.days[targetDayIndex].events);
   saveData();
   modalVisible.value = false;
 };

@@ -1,4 +1,4 @@
-# KaiGO Supabase 集成 - 實現總結
+# KaiBankVault Supabase 集成 - 實現總結
 
 ## 🎯 完成的功能
 
@@ -31,7 +31,7 @@
 - 所有修改自動同步（新增、編輯、刪除事件）
 
 ### 5. **Supabase 表結構** ✅
-- 創建 `trips` 表，包含：
+- 創建 `T_KaiBankVault_Trips` 表，包含：
   - `id` - UUID 主鍵
   - `user_id` - 用戶 ID (外鍵)
   - `trip_name` - 行程名稱
@@ -129,7 +129,7 @@ VITE_SUPABASE_ANON_KEY=your_key
 ### 第三步：啟動應用
 ```bash
 npm run dev
-# 應用運行在 http://localhost:5177/KaiGO/
+# 應用運行在 http://localhost:5177/KaiBankVault/
 ```
 
 ### 第四步：測試集成

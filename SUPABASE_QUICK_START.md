@@ -5,14 +5,14 @@
 ### ✅ 第 1 步：執行 SQL 初始化 (2 分鐘)
 
 1. 登入 https://app.supabase.com/
-2. 進入您的 KaiGO 專案
+2. 進入您的 KaiBankVault 專案
 3. 打開 **SQL Editor**
 4. 複製以下文件的全部內容：`supabase_setup.sql`
 5. 粘貼到 SQL Editor 並執行
 6. 等待完成（應該沒有錯誤）
 
 ✨ **完成後您將擁有：**
-- ✓ `trips` 表（存儲用戶行程數據）
+- ✓ `T_KaiBankVault_Trips` 表（存儲用戶行程數據）
 - ✓ RLS 安全策略（保護用戶隱私）
 - ✓ 自動時間戳管理
 - ✓ 性能索引
@@ -42,7 +42,7 @@ npm run dev
 然後按以下步驟測試：
 
 #### 測試場景 1：未登入用戶
-1. 打開 http://localhost:5177/KaiGO/
+1. 打開 http://localhost:5177/KaiBankVault/
 2. 點擊「查看旅遊行程」進入 TripPlan
 3. 編輯一個事件（例如改變時間或位置）
 4. 點擊「儲存」
@@ -152,7 +152,7 @@ A: 這是離線模式：
 
 ## 🎉 就這樣！
 
-您的 KaiGO 應用現在完全支持 Supabase 雲端存儲了！
+您的 KaiBankVault 應用現在完全支持 Supabase 雲端存儲了！
 
 ### 功能總結
 - ✅ 用戶認證

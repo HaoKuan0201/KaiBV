@@ -1,8 +1,8 @@
-# KaiGO Supabase 集成指南
+# KaiBankVault Supabase 集成指南
 
 ## 概述
 
-KaiGO 現已完全集成 Supabase，支持：
+KaiBankVault 現已完全集成 Supabase，支持：
 - ✅ 安全的用戶認證（基於 OTP/Magic Link）
 - ✅ 行程數據的雲端存儲
 - ✅ 自動同步（本地 ↔ Supabase）
@@ -16,7 +16,7 @@ KaiGO 現已完全集成 Supabase，支持：
 ### 步驟 1：進入 Supabase 控制台
 1. 訪問 https://supabase.com/
 2. 使用 Supabase 帳戶登入
-3. 進入您的專案 (KaiGO)
+3. 進入您的專案 (KaiBankVault)
 
 ### 步驟 2：執行 SQL 命令
 1. 進入 **SQL Editor**
@@ -26,7 +26,7 @@ KaiGO 現已完全集成 Supabase，支持：
 ### 步驟 3：驗證表格結構
 執行以下查詢來驗證表格：
 ```sql
-SELECT * FROM public.trips;
+SELECT * FROM public.T_KaiBankVault_Trips;
 ```
 
 應該會看到空表（如果是新設置）或現有的行程數據。
@@ -211,7 +211,7 @@ if (localData !== remoteData) {
 ### 問題：「同步失敗」
 ```javascript
 // 檢查用戶是否已登入 (authStore.isLoggedIn)
-// 檢查 trips 表是否存在
+// 檢查 T_KaiBankVault_Trips 表是否存在
 // 查看 Supabase 的日誌和錯誤信息
 ```
 

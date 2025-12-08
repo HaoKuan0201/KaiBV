@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import router from '@/router'
 import { supabase } from '../lib/supabaseClient.js'
 
-const SESSION_STORAGE_KEY = 'kaigo_session'
+const SESSION_STORAGE_KEY = 'kaibankvault_session'
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({

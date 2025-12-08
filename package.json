@@ -1,5 +1,5 @@
 {
-  "name": "kaigo",
+  "name": "kaibankvault",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "predeploy": "npm run build && node copy404.js",
-    "deploy": "gh-pages -d dist -r https://github.com/HaoKuan0201/KaiGO.git -b gh-pages"
+    "deploy": "gh-pages -d dist -r https://github.com/HaoKuan0201/KaiBankVault.git -b gh-pages"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",

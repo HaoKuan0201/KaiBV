@@ -4,8 +4,8 @@
 
       <v-app-bar-title>
         <RouterLink to="/" class="text-white text-decoration-none d-flex align-center gap-2">
-          <img :src="logoUrl" alt="KaiGO Logo" class="logo-img mr-2" />
-          <span class="text-h6 font-weight-bold">KaiGo</span>
+          <img :src="logoUrl" alt="KaiBankVault Logo" class="logo-img mr-2" />
+          <span class="text-h6 font-weight-bold">KaiBankVault</span>
         </RouterLink>
       </v-app-bar-title>
 
@@ -48,7 +48,7 @@
       <RouterView />
       
       <footer class="py-6 text-center text-caption text-medium-emphasis">
-        <p class="mb-1">© 2025 KaiGo Travel Planner</p>
+        <p class="mb-1">© 2025 KaiBankVault Travel Planner</p>
         <p>簡單、高效、協作</p>
       </footer>
     </v-main>

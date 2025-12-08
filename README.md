@@ -8,8 +8,8 @@ Learn more about the recommended Project Setup and IDE Support in the [Vue Docs 
 
 This project is set up to deploy the built `dist` folder to GitHub Pages using GitHub Actions.
 
-- Site URL: `https://HaoKuan0201.github.io/KaiGO/`
-- Vite `base` is set to `/KaiGO/` in `vite.config.ts` so assets and router paths resolve correctly.
+- Site URL: `https://HaoKuan0201.github.io/KaiBankVault/`
+- Vite `base` is set to `/KaiBankVault/` in `vite.config.ts` so assets and router paths resolve correctly.
 
 Quick steps to publish from your machine:
 
@@ -18,16 +18,16 @@ Quick steps to publish from your machine:
 3. From project root in PowerShell:
 
 ```powershell
-cd E:\Project\KaiGo
+cd E:\Project\KaiBankVault
 git init
 git add .
 git commit -m "chore: add .gitignore and GitHub Pages workflow"
 git branch -M main
 # Using gh CLI to create private repo and push (recommended):
 gh auth login
-gh repo create HaoKuan0201/KaiGO --private --source=. --remote=origin --push
+gh repo create HaoKuan0201/KaiBankVault --private --source=. --remote=origin --push
 # Or create repo on GitHub web, then:
-# git remote add origin https://github.com/HaoKuan0201/KaiGO.git
+# git remote add origin https://github.com/HaoKuan0201/KaiBankVault.git
 # git push -u origin main
 ```
 
